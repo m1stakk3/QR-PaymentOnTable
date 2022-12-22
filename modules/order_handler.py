@@ -1,6 +1,7 @@
 import psycopg2
 import qrcode
 import os
+import time
 
 
 class HandleOrder:
@@ -10,6 +11,14 @@ class HandleOrder:
 
     @staticmethod
     def add_order(table, waiter, food, qtn=1):      # {'Заказ': 0, 'Состав': {'Позиция': '', 'Кол-во': 0}}):
+        """
+        Позволяет добавить заказ с указанием:
+        1. Стол
+        2. Официант, обслуживающий стол
+        3. Позиция меню
+        4. Количество
+        Также вызывает создание QR-кода для оплаты этого заказа
+        """
         HandleOrder.cursor.execute(f"SELECT table_in_use FROM tables WHERE table_id = {table}")
         table_status = list(HandleOrder.cursor.fetchone())[0]
         HandleOrder.cursor.execute(f"SELECT food_title FROM food")
@@ -45,8 +54,15 @@ class QRgen:
     def __init__(self, order_id, waiter, food):
         path = rf'X:\QR-tables\QR\{order_id}.png'
         HandleOrder.cursor.execute(f"SELECT order_stime, order_total FROM orders WHERE order_id = {order_id}")
-        result = HandleOrder.cursor.fetchone()
-        img = qrcode.make(data={'Дата создания заказа': result[0], 'Состав заказа': food, 'Сумма заказа': result[-1]})
+        order_info = list(HandleOrder.cursor.fetchone())
+        HandleOrder.cursor.execute(f"SELECT emp_name, emp_surname FROM employees e JOIN orders o ON "
+                                   f"o.order_waiter = e.emp_id WHERE o.order_waiter = {waiter}")
+        waiter_data = list(HandleOrder.cursor.fetchone())
+        img = qrcode.make(data={'Дата создания заказа': order_info[0],
+                                'Состав заказа': food, 
+                                'Сумма заказа': order_info[-1],
+                                'Официант': waiter_data[0][:1] + '. ' + waiter_data[-1]})
         img.save(path)
+        time.sleep(0.1)
         if os.path.exists(path):
             HandleOrder.cursor.execute(f"UPDATE orders SET order_qr = '{path}' WHERE order_id = {order_id}")
