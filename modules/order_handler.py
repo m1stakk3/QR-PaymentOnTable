@@ -1,7 +1,7 @@
 import psycopg2
 import qrcode
 import os
-import time
+import datetime
 
 
 class HandleOrder:
@@ -19,34 +19,31 @@ class HandleOrder:
         4. Количество
         Также вызывает создание QR-кода для оплаты этого заказа
         """
-        HandleOrder.cursor.execute(f"SELECT table_in_use FROM tables WHERE table_id = {table}")
-        table_status = list(HandleOrder.cursor.fetchone())[0]
-        HandleOrder.cursor.execute(f"SELECT food_title FROM food")
 
-        if table_status == 'false':
-            HandleOrder.cursor.execute("UPDATE tables SET table_daily_usage = table_daily_usage + 1 "
-                                       f"WHERE table_id = {table};"
-                                       "UPDATE tables SET table_in_use = 'true' "
-                                       f"WHERE table_id = {table}")
+        HandleOrder.cursor.execute(f"SELECT food_title FROM food WHERE food_id = {food}")
+        food_data = list(HandleOrder.cursor.fetchone())[0]
+        HandleOrder.cursor.execute("UPDATE tables SET table_daily_usage = table_daily_usage + 1 "
+                                   f"WHERE table_id = {table};"
+                                   "UPDATE tables SET table_in_use = 'true' "
+                                   f"WHERE table_id = {table}")
 
-            HandleOrder.cursor.execute(
-                "INSERT INTO orders (order_table, order_waiter, order_payment, order_food, order_total) "
-                f"VALUES ({table}, {waiter}, 'Не оплачен', "
-                " '{\"Состав\": {"
-                f"\"Позиция\": \"{food}\", \"Кол-во\": {qtn}"
-                "}}', "
-                f" (SELECT food_price FROM food WHERE food_title = '{food}') * {qtn} )")
+        HandleOrder.cursor.execute(
+            "INSERT INTO orders (order_table, order_waiter, order_payment, order_food, order_total) "
+            f"VALUES ({table}, {waiter}, 'Не оплачен', "
+            " '{\"Состав\": {"
+            f"\"Позиция\": \"{food_data}\", \"Кол-во\": {qtn}"
+            "}}', "
+            f" (SELECT food_price FROM food WHERE food_title = '{food_data}') * {qtn} )")
+        HandleOrder.conn.commit()
+        HandleOrder.cursor.execute(f"SELECT order_id, order_food FROM orders WHERE order_table = '{table}' "
+                                   f"AND order_waiter = '{waiter}' AND order_payment = 'Не оплачен'")
+        answer = list(HandleOrder.cursor.fetchone())
+        QRgen(order_id=answer[0], waiter=waiter, food=answer[-1])
+        return True
 
-            HandleOrder.conn.commit()
-
-            HandleOrder.cursor.execute(f"SELECT order_id, order_food FROM orders WHERE order_table = '{table}' "
-                                       f"AND order_waiter = '{waiter}' AND order_payment = 'Не оплачен'")
-            answer = list(HandleOrder.cursor.fetchone())
-
-            QRgen(order_id=answer[0], waiter=waiter, food=answer[-1])
-            return 'Заказ размещен!'
-        else:
-            return 'Стол занят, либо заказ не оплачен!'
+    @staticmethod
+    def free_order(order_id):
+        HandleOrder.cursor.execute(f"UPDATE orders SET ")
 
 
 class QRgen:
@@ -63,6 +60,5 @@ class QRgen:
                                 'Сумма заказа': order_info[-1],
                                 'Официант': waiter_data[0][:1] + '. ' + waiter_data[-1]})
         img.save(path)
-        time.sleep(0.1)
         if os.path.exists(path):
             HandleOrder.cursor.execute(f"UPDATE orders SET order_qr = '{path}' WHERE order_id = {order_id}")

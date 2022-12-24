@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, IntegerField, SelectField
 from wtforms.validators import DataRequired, ValidationError, InputRequired, Length
+from modules.data_getter import DataGetter
 
 
 class DataValidators:
@@ -11,7 +12,8 @@ class DataValidators:
 
 
 class AddOrderForm(FlaskForm):
-    table = IntegerField('Стол: ', validators=[InputRequired(), Length(min=1, max=2)])
-    waiter = SelectField('Официант: ', choices=[(1, 'Сильный'), (2, 'Тестер')], validators=[DataRequired()])
-    order_info = StringField('Состав заказа: ', validators=[DataRequired()])
+    table = SelectField('Стол: ', choices=DataGetter.get_free_tables(), validators=[InputRequired()])
+    waiter = SelectField('Официант: ', choices=DataGetter.get_waiters(), validators=[DataRequired()])
+    food = SelectField('Состав заказа: ', choices=DataGetter.get_food(), validators=[DataRequired()])
+    quantity = SelectField('Количество: ', choices=[(1, '1'), (2, '2'), (3, '3'), (4, '4'), (5, '5')], validators=[DataRequired()])
     submit = SubmitField('Создать заказ')

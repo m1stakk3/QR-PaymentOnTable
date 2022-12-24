@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 from modules.order_handler import HandleOrder
 from modules.add_order import AddOrderForm
+from modules.data_getter import DataGetter
 import os
 
 
@@ -17,8 +18,21 @@ def make_order():
     if request.method == 'POST':
         table = request.form.get('table')
         waiter = request.form.get('waiter')
-        order_info = request.form.get('order_info')
-        return f'Заказ обработан! Стол: {table}, Официант: {waiter}, Состав заказа: {order_info}'
+        food = request.form.get('food')
+        quantity = request.form.get('quantity')
+        if HandleOrder.add_order(table=table, waiter=waiter, food=food, qtn=quantity):
+            return f'Заказ обработан! Стол: {table}, Официант: {waiter}, Состав заказа: {food} в количестве {quantity}'
+        else:
+            return 'Ошибка при создании заказа!'
+
+
+@app.route("/payment/<int:table_id>/", methods=['GET', 'POST'])
+def pay_order(table_id):
+    if request.method == 'GET':
+        debt = DataGetter.get_payment_info(table_id)
+        return render_template('payment_page.html', debt=debt)
+    if request.method == 'POST':
+        return 'Позже сделаю'
 
 
 if __name__ == "__main__":
