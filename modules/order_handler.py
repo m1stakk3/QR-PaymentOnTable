@@ -2,6 +2,7 @@ import psycopg2
 import qrcode
 import os
 import datetime
+from modules.data_getter import DataGetter
 
 
 class HandleOrder:
@@ -22,28 +23,40 @@ class HandleOrder:
 
         HandleOrder.cursor.execute(f"SELECT food_title FROM food WHERE food_id = {food}")
         food_data = list(HandleOrder.cursor.fetchone())[0]
-        HandleOrder.cursor.execute("UPDATE tables SET table_daily_usage = table_daily_usage + 1 "
-                                   f"WHERE table_id = {table};"
-                                   "UPDATE tables SET table_in_use = 'true' "
-                                   f"WHERE table_id = {table}")
-
         HandleOrder.cursor.execute(
-            "INSERT INTO orders (order_table, order_waiter, order_payment, order_food, order_total) "
+            "INSERT INTO orders (order_table, order_waiter, order_pstatus, order_food, order_total) "
             f"VALUES ({table}, {waiter}, 'Не оплачен', "
-            " '{\"Состав\": {"
+            " '{\"Состав\": [{"
             f"\"Позиция\": \"{food_data}\", \"Кол-во\": {qtn}"
-            "}}', "
+            "}]}', "
             f" (SELECT food_price FROM food WHERE food_title = '{food_data}') * {qtn} )")
         HandleOrder.conn.commit()
-        HandleOrder.cursor.execute(f"SELECT order_id, order_food FROM orders WHERE order_table = '{table}' "
-                                   f"AND order_waiter = '{waiter}' AND order_payment = 'Не оплачен'")
+        HandleOrder.cursor.execute(f"SELECT order_id, order_food FROM orders WHERE order_table='{table}' "
+                                   f"AND order_waiter='{waiter}' AND order_pstatus='Не оплачен'")
         answer = list(HandleOrder.cursor.fetchone())
-        QRgen(order_id=answer[0], waiter=waiter, food=answer[-1])
-        return True
+        if len(answer) > 0:
+            HandleOrder.cursor.execute("UPDATE tables SET table_daily_usage=table_daily_usage + 1, table_in_use='true' "
+                                       f"WHERE table_id={table}")
+            HandleOrder.conn.commit()
+            QRgen(order_id=answer[0], waiter=waiter, food=answer[-1])
+            return True
+        else:
+            return False
 
     @staticmethod
-    def free_order(order_id):
-        HandleOrder.cursor.execute(f"UPDATE orders SET ")
+    def cancel_order(order_id):
+        if order_id in DataGetter.active_orders():
+            HandleOrder.cursor.execute(f"UPDATE orders SET order_pstatus='Отменен', "
+                                       f"order_etime='{datetime.datetime.now()}' "
+                                       f"WHERE order_id={order_id}")
+            HandleOrder.conn.commit()
+            HandleOrder.cursor.execute("UPDATE tables SET table_in_use='false' WHERE table_id= "
+                                       f"(SELECT order_table FROM orders WHERE order_id={order_id} "
+                                       "AND order_pstatus='Отменен')")
+            HandleOrder.conn.commit()
+            return True
+        else:
+            return False
 
 
 class QRgen:
@@ -60,5 +73,5 @@ class QRgen:
                                 'Сумма заказа': order_info[-1],
                                 'Официант': waiter_data[0][:1] + '. ' + waiter_data[-1]})
         img.save(path)
-        if os.path.exists(path):
-            HandleOrder.cursor.execute(f"UPDATE orders SET order_qr = '{path}' WHERE order_id = {order_id}")
+        HandleOrder.cursor.execute(f"UPDATE orders SET order_qr='{path}' WHERE order_id={order_id}")
+        HandleOrder.conn.commit()

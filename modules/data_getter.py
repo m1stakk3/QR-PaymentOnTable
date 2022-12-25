@@ -1,4 +1,5 @@
 import psycopg2
+import datetime
 
 
 class DataGetter:
@@ -7,7 +8,7 @@ class DataGetter:
 
     @staticmethod
     def get_free_tables():
-        DataGetter.cursor.execute("SELECT table_id FROM tables WHERE table_in_use = 'false' ORDER BY table_id ASC")
+        DataGetter.cursor.execute("SELECT table_id FROM tables WHERE table_in_use='false' ORDER BY table_id ASC")
         tables = DataGetter.cursor.fetchall()
         result = []
         for _ in tables:
@@ -36,10 +37,10 @@ class DataGetter:
     def get_payment_info(table_id):
         DataGetter.cursor.execute("SELECT order_table FROM orders ORDER BY order_table ASC")
         tables = list(DataGetter.cursor.fetchall())
-        temp = []
+        result = []
         for _ in tables:
-            temp.append(*_)
-        if table_id in temp:
+            result.append(*_)
+        if table_id in result:
             DataGetter.cursor.execute("SELECT o.order_total-o.order_payment FROM orders o "
                                       "JOIN tables t ON t.table_id=o.order_table "
                                       "WHERE o.order_pstatus='Не оплачен' AND o.order_etime is Null "
@@ -51,3 +52,19 @@ class DataGetter:
                 return "Текущий стол забронирован!"
         else:
             return "На текущем столе нет задолженности!"
+
+    @staticmethod
+    def active_orders():
+        DataGetter.cursor.execute("SELECT order_id FROM orders WHERE order_pstatus='Не оплачен'")
+        orders = list(DataGetter.cursor.fetchall())
+        result = []
+        for _ in orders:
+            result.append(*_)
+        return result
+
+    @staticmethod
+    def current_order_for_table(table_id):
+        DataGetter.cursor.execute(f"SELECT order_id FROM orders WHERE order_table={table_id} "
+                                  "AND order_pstatus='Не оплачен'")
+        result = list(DataGetter.cursor.fetchone())[0]
+        return result

@@ -30,9 +30,19 @@ def make_order():
 def pay_order(table_id):
     if request.method == 'GET':
         debt = DataGetter.get_payment_info(table_id)
-        return render_template('payment_page.html', debt=debt)
+        order_id = DataGetter.current_order_for_table(table_id)
+        return render_template('payment_page.html', debt=debt, order_id=order_id)
     if request.method == 'POST':
         return 'Позже сделаю'
+
+
+@app.route("/cancel_order/<int:order_id>/", methods=['GET'])
+def cancel_order(order_id):
+    if request.method == 'GET':
+        if HandleOrder.cancel_order(order_id):
+            return f'Заказ {order_id} отменен'
+        else:
+            return f'Заказ не нуждается в отмене'
 
 
 if __name__ == "__main__":
