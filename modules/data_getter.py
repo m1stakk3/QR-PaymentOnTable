@@ -1,5 +1,4 @@
 import psycopg2
-import datetime
 
 
 class DataGetter:
@@ -8,6 +7,7 @@ class DataGetter:
 
     @staticmethod
     def get_free_tables():
+        """ Список свободных столов """
         DataGetter.cursor.execute("SELECT table_id FROM tables WHERE table_in_use='false' ORDER BY table_id ASC")
         tables = DataGetter.cursor.fetchall()
         result = []
@@ -18,6 +18,7 @@ class DataGetter:
 
     @staticmethod
     def get_waiters():
+        """ Список всех офиков """
         DataGetter.cursor.execute("SELECT e.emp_id, e.emp_name, e.emp_surname FROM employees e JOIN posts p "
                                   "ON e.emp_post=p.post_id WHERE p.post_name='Официант' ORDER BY e.emp_surname")
         waiters = DataGetter.cursor.fetchall()
@@ -29,12 +30,17 @@ class DataGetter:
 
     @staticmethod
     def get_food():
+        """ Список всей еды """
         DataGetter.cursor.execute("SELECT food_id, food_title FROM food ORDER BY food_category ASC")
         food = DataGetter.cursor.fetchall()
         return food
 
     @staticmethod
     def get_payment_info(table_id):
+        """
+        Если стол 'Не оплачен' и время окончения не стоит, то текущий стол занят
+        Если тотал составляет какое-то число, то стол используется под нужды заказа, иначе он забронирован
+         """
         DataGetter.cursor.execute("SELECT order_table FROM orders ORDER BY order_table ASC")
         tables = list(DataGetter.cursor.fetchall())
         result = []
@@ -55,6 +61,7 @@ class DataGetter:
 
     @staticmethod
     def active_orders():
+        """ Все неоплаченные заказы """
         DataGetter.cursor.execute("SELECT order_id FROM orders WHERE order_pstatus='Не оплачен'")
         orders = list(DataGetter.cursor.fetchall())
         result = []
@@ -64,7 +71,14 @@ class DataGetter:
 
     @staticmethod
     def current_order_for_table(table_id):
+        """ Получение заказа для текущего стола """
         DataGetter.cursor.execute(f"SELECT order_id FROM orders WHERE order_table={table_id} "
                                   "AND order_pstatus='Не оплачен'")
-        result = list(DataGetter.cursor.fetchone())[0]
-        return result
+        result = DataGetter.cursor.fetchone()
+        if result is None:
+            return result
+        else:
+            return result[0]
+
+
+print(DataGetter.current_order_for_table(5))

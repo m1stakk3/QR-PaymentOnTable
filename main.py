@@ -36,13 +36,14 @@ def pay_order(table_id):
         return 'Позже сделаю'
 
 
-@app.route("/cancel_order/<int:order_id>/", methods=['GET'])
-def cancel_order(order_id):
+@app.route("/cancel_order/<int:table_id>/", methods=['GET'])
+def cancel_order(table_id):
     if request.method == 'GET':
-        if HandleOrder.cancel_order(order_id):
-            return f'Заказ {order_id} отменен'
+        answer = HandleOrder.cancel_order(table_id)
+        if answer is not None:
+            return render_template('order_cancel.html', order_id=answer[1], order_table=table_id)
         else:
-            return f'Заказ не нуждается в отмене'
+            return f'Заказов на столе {table_id} нет'
 
 
 if __name__ == "__main__":

@@ -44,8 +44,12 @@ class HandleOrder:
             return False
 
     @staticmethod
-    def cancel_order(order_id):
-        if order_id in DataGetter.active_orders():
+    def cancel_order(table_id):
+        """
+        Можно отменить заказ в случае ухода покупателя
+        """
+        order_id = DataGetter.current_order_for_table(table_id)
+        if order_id is not None:
             HandleOrder.cursor.execute(f"UPDATE orders SET order_pstatus='Отменен', "
                                        f"order_etime='{datetime.datetime.now()}' "
                                        f"WHERE order_id={order_id}")
@@ -54,9 +58,7 @@ class HandleOrder:
                                        f"(SELECT order_table FROM orders WHERE order_id={order_id} "
                                        "AND order_pstatus='Отменен')")
             HandleOrder.conn.commit()
-            return True
-        else:
-            return False
+            return order_id
 
 
 class QRgen:
