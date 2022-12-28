@@ -5,6 +5,10 @@
     <title>Оплата заказа {{ order_id }}</title>
 </head>
 <body>
-    {{ debt }}
+<h1>К оплате заказа: {{ debt }}Р.</h1> <br>
+    <form action="" method="post" name="payment">
+        {{ form.money.label }} {{ form.money }}
+        {{ form.submit.label }} {{ form.submit }}
+    </form>
 </body>
 </html>
